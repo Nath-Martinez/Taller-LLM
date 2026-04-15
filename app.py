@@ -1,3 +1,8 @@
+import sys
+import io
+
+# Forzar la salida estándar a UTF-8
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -54,6 +59,24 @@ with tab2:
         st.plotly_chart(px.scatter(df, x='x', y='y', text='Palabra')) # [cite: 31]
 
 # --- Módulo 3: Inferencia ---
+# Dentro del bloque de ejecución en el Módulo 3
+try:
+    # Asegurar que el contenido sea tratado como string de Python 3 (UTF-8 por defecto)
+    clean_sys = str(sys).encode('utf-8').decode('utf-8')
+    clean_user = str(user).encode('utf-8').decode('utf-8')
+    
+    resp = client.chat.completions.create(
+        model="llama3-8b-8192",
+        messages=[
+            {"role": "system", "content": clean_sys},
+            {"role": "user", "content": clean_user}
+        ],
+        temperature=t,
+        top_p=p
+    )
+    # ... resto del código para guardar métricas en el Módulo 4 ...
+except Exception as e:
+    st.error(f"Error de solicitud: {str(e)}")
 with tab3:
     st.header("🤖 Inferencia")
     sys = st.text_area("System Prompt:", "Eres un tutor de IA.")
