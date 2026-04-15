@@ -83,36 +83,35 @@ with tab2:
         st.info("Reto: Verifique si (king) - (man) + (woman) ≈ (queen) en el espacio vectorial.")
 
 # --- Módulo 3 & 4: Inferencia y Métricas ---
-with tab3:
-    st.header("🤖 Inferencia y Razonamiento")
-    sys_prompt = st.text_area("System Prompt:", "Eres un asistente experto en IA.")
-    user_prompt = st.text_area("User Prompt:", "¿Qué es el mecanismo de Self-Attention?")
-    
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        temp = st.slider("Temperatura", 0.0, 1.5, 0.7, help="Bajo: Determinsta | Alto: Creativo")
-    with col_p2:
-        top_p = st.slider("Top-P", 0.0, 1.0, 0.9)
+if st.button("Ejecutar Modelo"):
+        if not groq_api_key:
+            st.error("⚠️ Falta la API Key en la barra lateral.")
+        else:
+            try:
+                client = Groq(api_key=groq_api_key)
+                start = time.time()
+                
+                resp = client.chat.completions.create(
+                    model=model_name,
+                    messages=[{"role":"system","content":sys_p},{"role":"user","content":user_p}],
+                    temperature=temp,
+                    top_p=tp
+                )
+                
+                total_time = time.time() - start
+                
+                # Guardar datos para el Módulo 4
+                st.session_state.groq_response = {
+                    "text": resp.choices[0].message.content,
+                    "usage": resp.usage,
+                    "time": total_time
+                }
+                st.success("¡Respuesta generada con éxito! Revisa la pestaña de Métricas.")
+                st.write(st.session_state.groq_response["text"])
 
-    if st.button("Generar Respuesta"):
-        if groq_api_key:
-            client = Groq(api_key=groq_api_key)
-            
-            start_time = time.time()
-            completion = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=temp,
-                top_p=top_p
-            )
-            duration = time.time() - start_time
-            
-            response_text = completion.choices[0].message.content
-            st.write("### Respuesta del Modelo:")
-            st.write(response_text)
+            except Exception as e:
+                # Esto atrapa el error de autenticación y lo muestra de forma amigable
+                st.error(f"❌ Error de Groq: {e}")
             
             # --- Módulo 4: Métricas de Desempeño ---
             with tab4:
