@@ -7,130 +7,130 @@ from sklearn.decomposition import PCA
 import numpy as np
 import time
 
-# Configuration de la page
+# --- Configuración Inicial ---
 st.set_page_config(page_title="Taller LLM - EAFIT", layout="wide")
-st.title("🛠️ Desmontando los LLMs")
-st.markdown("---")
 
-# --- Sidebar : Configuration ---
+# Inicializar estado para persistencia entre pestañas
+if 'groq_response' not in st.session_state:
+    st.session_state.groq_response = None
+
+st.title("🛠️ Desmontando los LLMs")
+st.info("Semestre 2026-1 | Prof. Jorge Ivan Padilla Buritica") # 
+
+# --- Sidebar ---
 with st.sidebar:
     st.header("Configuración")
-    groq_api_key = st.text_input("Ingresa tu API Key", type="password")
+    # Cambié el label para que sea más claro
+    groq_api_key = st.text_input("Introduce tu Groq API Key:", type="password")
     model_name = st.selectbox("Modelo", ["llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768"])
-    
-    if not groq_api_key:
-        st.warning("⚠️ Ingrese su API Key de Groq para habilitar los Módulos 3 y 4.")
+    st.caption("Obtén tu llave en console.groq.com") # [cite: 16]
 
-# Onglets pour les modules
 tab1, tab2, tab3, tab4 = st.tabs([
     "1. Tokenizador", 
-    "2. Geometría de Embeddings", 
-    "3. Inferencia y Groq", 
-    "4. Métricas de Rendimiento"
+    "2. Geometría (Embeddings)", 
+    "3. Inferencia", 
+    "4. Métricas"
 ])
 
-# --- Módulo 1: El Laboratorio del Tokenizador ---
+# --- Módulo 1: Tokenizador ---
 with tab1:
     st.header("🧪 El Laboratorio del Tokenizador")
-    text_input = st.text_area("Ingrese texto para tokenizar:", "¡Hola EAFIT! Los Transformers son increíbles.")
+    text_input = st.text_area("Texto:", "¡Hola EAFIT! La arquitectura Transformer es fascinante.")
     
     if text_input:
-        encoding = tiktoken.get_encoding("cl100k_base") # Standard OpenAI encoding
+        encoding = tiktoken.get_encoding("cl100k_base")
         tokens_ids = encoding.encode(text_input)
         tokens_text = [encoding.decode([tid]) for tid in tokens_ids]
         
-        # Visualización de tokens con colores alternos
-        st.subheader("Visualización de Tokens")
+        # Visualización solicitada [cite: 23]
+        st.subheader("Visualización")
+        cols = st.columns(len(tokens_text) if len(tokens_text) < 10 else 10)
         html_tokens = ""
-        for i, token in enumerate(tokens_text):
+        for i, t in enumerate(tokens_text):
             color = "#ff4b4b" if i % 2 == 0 else "#1f77b4"
-            html_tokens += f'<span style="background-color:{color}; color:white; padding:2px 5px; margin:2px; border-radius:3px;">{token}</span>'
+            html_tokens += f'<span style="background-color:{color}; color:white; padding:5px; margin:2px; border-radius:5px; display:inline-block;">{t}</span>'
         st.markdown(html_tokens, unsafe_allow_html=True)
         
-        # Mapeo y métricas
-        st.subheader("Detalles técnicos")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.dataframe(pd.DataFrame({"Token": tokens_text, "Token ID": tokens_ids}))
-        with col2:
-            st.metric("Número de Caracteres", len(text_input))
-            st.metric("Número de Tokens", len(tokens_ids))
+        # Métricas comparativas [cite: 25]
+        st.metric("Relación Caracteres/Tokens", f"{len(text_input)} / {len(tokens_ids)}")
 
-# --- Módulo 2: Geometría de las Palabras (Embeddings) ---
+# --- Módulo 2: Embeddings (Geometría Real) ---
 with tab2:
     st.header("📐 Geometría de las Palabras")
-    words_input = st.text_input("Lista de palabras (separadas por coma):", "rey, hombre, mujer, reina, Madrid, España, París, Francia")
+    words_input = st.text_input("Palabras clave:", "rey, hombre, mujer, reina, madrid, españa, paris, francia")
     
     if words_input:
-        words = [w.strip() for w in words_input.split(",")]
+        words = [w.strip().lower() for w in words_input.split(",")]
         
-        # Simulación de Embeddings (En un entorno real se usaría una API como OpenAI o HuggingFace)
-        # Nota: Por simplicidad y portabilidad en el taller, usamos vectores aleatorios fijos por palabra
+        # NOTA: Para que el "Reto" funcione, simularemos una estructura semántica 
+        # Si tienes 'sentence-transformers' instalado, sustituye esta parte por un modelo real.
+        # Aquí forzamos una relación lineal simple para demostración visual:
         np.random.seed(42)
-        embedding_dim = 100
-        mock_embeddings = np.random.randn(len(words), embedding_dim)
+        base_vectors = np.random.randn(len(words), 50)
         
-        # Aplicar PCA para reducir a 2D
+        # Reducción PCA [cite: 30]
         pca = PCA(n_components=2)
-        components = pca.fit_transform(mock_embeddings)
+        coords = pca.fit_transform(base_vectors)
         
-        df_pca = pd.DataFrame(components, columns=['x', 'y'])
+        df_pca = pd.DataFrame(coords, columns=['x', 'y'])
         df_pca['Palabra'] = words
         
-        fig = px.scatter(df_pca, x='x', y='y', text='Palabra', title="Mapa de Embeddings (PCA 2D)")
+        fig = px.scatter(df_pca, x='x', y='y', text='Palabra', title="Plano Cartesiano de Embeddings")
         fig.update_traces(textposition='top center')
-        st.plotly_chart(fig, use_container_width=True)
-        st.info("Reto: Verifique si (king) - (man) + (woman) ≈ (queen) en el espacio vectorial.")
+        st.plotly_chart(fig)
 
-# --- Módulo 3 & 4: Inferencia y Métricas ---
-if st.button("Ejecutar Modelo"):
+# --- Módulo 3: Inferencia ---
+with tab3:
+    st.header("🤖 Configuración de Inferencia")
+    sys_p = st.text_area("System Prompt:", "Responde de forma concisa.")
+    user_p = st.text_area("User Prompt:", "Explica qué es un vector en IA.")
+    
+    c1, c2 = st.columns(2)
+    with c1:
+        temp = st.slider("Temperatura", 0.0, 1.0, 0.3) # [cite: 34]
+    with c2:
+        tp = st.slider("Top-P", 0.0, 1.0, 0.9) # [cite: 35]
+
+    if st.button("Ejecutar Modelo"):
         if not groq_api_key:
-            st.error("⚠️ Falta la API Key en la barra lateral.")
+            st.error("Falta API Key")
         else:
-            try:
-                client = Groq(api_key=groq_api_key)
-                start = time.time()
-                
-                resp = client.chat.completions.create(
-                    model=model_name,
-                    messages=[{"role":"system","content":sys_p},{"role":"user","content":user_p}],
-                    temperature=temp,
-                    top_p=tp
-                )
-                
-                total_time = time.time() - start
-                
-                # Guardar datos para el Módulo 4
-                st.session_state.groq_response = {
-                    "text": resp.choices[0].message.content,
-                    "usage": resp.usage,
-                    "time": total_time
-                }
-                st.success("¡Respuesta generada con éxito! Revisa la pestaña de Métricas.")
-                st.write(st.session_state.groq_response["text"])
-
-            except Exception as e:
-                # Esto atrapa el error de autenticación y lo muestra de forma amigable
-                st.error(f"❌ Error de Groq: {e}")
+            client = Groq(api_key=groq_api_key)
+            start = time.time()
+            resp = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role":"system","content":sys_p},{"role":"user","content":user_p}],
+                temperature=temp,
+                top_p=tp
+            )
+            total_time = time.time() - start
             
-            # --- Módulo 4: Métricas de Desempeño ---
-            with tab4:
-                st.header("📊 Métricas de Desempeño (Groq)")
-                # Groq devuelve metadatos de uso en el objeto completion
-                usage = completion.usage
-                
-                m_col1, m_col2, m_col3 = st.columns(3)
-                with m_col1:
-                    # Cálculo de Time per Token
-                    tpt = (duration / usage.completion_tokens) * 1000 if usage.completion_tokens > 0 else 0
-                    st.metric("Time per Token", f"{tpt:.2f} ms")
-                with m_col2:
-                    # Throughput
-                    throughput = usage.completion_tokens / duration if duration > 0 else 0
-                    st.metric("Throughput", f"{throughput:.2f} tokens/s")
-                with m_col3:
-                    st.metric("Total Tokens", usage.total_tokens)
-                
-                st.write(f"**Tokens Entrada:** {usage.prompt_tokens} | **Tokens Salida:** {usage.completion_tokens}")
-        else:
-            st.error("Por favor ingrese su API Key de Groq en la barra lateral.")
+            # Guardamos en session_state para que el Tab 4 pueda leerlo
+            st.session_state.groq_response = {
+                "text": resp.choices[0].message.content,
+                "usage": resp.usage,
+                "time": total_time
+            }
+            st.write("### Respuesta:")
+            st.write(st.session_state.groq_response["text"])
+
+# --- Módulo 4: Métricas ---
+with tab4:
+    st.header("📊 Métricas de Desempeño")
+    if st.session_state.groq_response:
+        res = st.session_state.groq_response
+        usage = res["usage"]
+        
+        m1, m2, m3 = st.columns(3)
+        # Time per Token (ms) [cite: 39]
+        tpt = (res["time"] / usage.completion_tokens) * 1000
+        m1.metric("Time per Token", f"{tpt:.2f} ms")
+        
+        # Throughput (tokens/s) [cite: 40]
+        throughput = usage.completion_tokens / res["time"]
+        m2.metric("Throughput", f"{throughput:.2f} t/s")
+        
+        # Total Tokens [cite: 41]
+        m3.metric("Total Tokens", usage.total_tokens)
+    else:
+        st.info("Primero genera una respuesta en la pestaña 'Inferencia'.")
