@@ -15,7 +15,7 @@ st.markdown("---")
 # --- Sidebar : Configuration ---
 with st.sidebar:
     st.header("Configuración")
-    groq_api_key = st.text_input("gsk_...aX3X", type="password")
+    groq_api_key = st.text_input("Ingresa tu API Key", type="password")
     model_name = st.selectbox("Modelo", ["llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768"])
     
     if not groq_api_key:
