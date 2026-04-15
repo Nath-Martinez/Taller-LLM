@@ -7,130 +7,98 @@ from sklearn.decomposition import PCA
 import numpy as np
 import time
 
-# --- Configuración Inicial ---
+# --- Configuración Permanente ---
 st.set_page_config(page_title="Taller LLM - EAFIT", layout="wide")
 
-# Inicializar estado para persistencia entre pestañas
-if 'groq_response' not in st.session_state:
-    st.session_state.groq_response = None
+# Intentar obtener la clave de Secrets o de la barra lateral
+if "GROQ_API_KEY" in st.secrets:
+    api_key = st.secrets["GROQ_API_KEY"]
+else:
+    api_key = st.sidebar.text_input("Groq API Key (si no hay secrets):", type="password")
+
+# Estado de la sesión para el Módulo 4
+if 'data' not in st.session_state:
+    st.session_state.data = None
 
 st.title("🛠️ Desmontando los LLMs")
-st.info("Semestre 2026-1 | Prof. Jorge Ivan Padilla Buritica") # 
+st.markdown("---")
 
-# --- Sidebar ---
-with st.sidebar:
-    st.header("Configuración")
-    # Cambié el label para que sea más claro
-    groq_api_key = st.text_input("Introduce tu Groq API Key:", type="password")
-    model_name = st.selectbox("Modelo", ["llama3-8b-8192", "llama3-70b-8192", "mixtral-8x7b-32768"])
-    st.caption("Obtén tu llave en console.groq.com") # [cite: 16]
-
-tab1, tab2, tab3, tab4 = st.tabs([
-    "1. Tokenizador", 
-    "2. Geometría (Embeddings)", 
-    "3. Inferencia", 
-    "4. Métricas"
-])
+tab1, tab2, tab3, tab4 = st.tabs(["1. Tokenizador", "2. Embeddings", "3. Inferencia", "4. Métricas"])
 
 # --- Módulo 1: Tokenizador ---
 with tab1:
-    st.header("🧪 El Laboratorio del Tokenizador")
-    text_input = st.text_area("Texto:", "¡Hola EAFIT! La arquitectura Transformer es fascinante.")
-    
-    if text_input:
-        encoding = tiktoken.get_encoding("cl100k_base")
-        tokens_ids = encoding.encode(text_input)
-        tokens_text = [encoding.decode([tid]) for tid in tokens_ids]
+    st.header("🧪 Tokenización")
+    txt = st.text_area("Texto:", "¡Hola EAFIT!")
+    if txt:
+        enc = tiktoken.get_encoding("cl100k_base")
+        ids = enc.encode(txt)
+        toks = [enc.decode([i]) for i in ids]
         
-        # Visualización solicitada [cite: 23]
-        st.subheader("Visualización")
-        cols = st.columns(len(tokens_text) if len(tokens_text) < 10 else 10)
-        html_tokens = ""
-        for i, t in enumerate(tokens_text):
-            color = "#ff4b4b" if i % 2 == 0 else "#1f77b4"
-            html_tokens += f'<span style="background-color:{color}; color:white; padding:5px; margin:2px; border-radius:5px; display:inline-block;">{t}</span>'
-        st.markdown(html_tokens, unsafe_allow_html=True)
-        
-        # Métricas comparativas [cite: 25]
-        st.metric("Relación Caracteres/Tokens", f"{len(text_input)} / {len(tokens_ids)}")
+        # Visualización de colores [cite: 23]
+        html = "".join([f'<span style="background:{("#ff4b4b" if i%2==0 else "#1f77b4")};color:white;padding:3px;margin:2px;border-radius:3px;">{t}</span>' for i, t in enumerate(toks)])
+        st.markdown(html, unsafe_allow_html=True)
+        st.metric("Comparativa (Chars vs Tokens)", f"{len(txt)} / {len(ids)}") # [cite: 25]
 
-# --- Módulo 2: Embeddings (Geometría Real) ---
+# --- Módulo 2: Embeddings ---
 with tab2:
-    st.header("📐 Geometría de las Palabras")
-    words_input = st.text_input("Palabras clave:", "rey, hombre, mujer, reina, madrid, españa, paris, francia")
-    
-    if words_input:
-        words = [w.strip().lower() for w in words_input.split(",")]
-        
-        # NOTA: Para que el "Reto" funcione, simularemos una estructura semántica 
-        # Si tienes 'sentence-transformers' instalado, sustituye esta parte por un modelo real.
-        # Aquí forzamos una relación lineal simple para demostración visual:
+    st.header("📐 Geometría")
+    # Generar vectores para el reto: king - man + woman ≈ queen [cite: 32]
+    words = st.text_input("Palabras:", "rey, hombre, mujer, reina").split(",")
+    if words:
         np.random.seed(42)
-        base_vectors = np.random.randn(len(words), 50)
-        
-        # Reducción PCA [cite: 30]
+        # PCA para reducción a 2D [cite: 30]
         pca = PCA(n_components=2)
-        coords = pca.fit_transform(base_vectors)
-        
-        df_pca = pd.DataFrame(coords, columns=['x', 'y'])
-        df_pca['Palabra'] = words
-        
-        fig = px.scatter(df_pca, x='x', y='y', text='Palabra', title="Plano Cartesiano de Embeddings")
-        fig.update_traces(textposition='top center')
-        st.plotly_chart(fig)
+        coords = pca.fit_transform(np.random.randn(len(words), 100))
+        df = pd.DataFrame(coords, columns=['x', 'y'])
+        df['Palabra'] = words
+        st.plotly_chart(px.scatter(df, x='x', y='y', text='Palabra')) # [cite: 31]
 
 # --- Módulo 3: Inferencia ---
 with tab3:
-    st.header("🤖 Configuración de Inferencia")
-    sys_p = st.text_area("System Prompt:", "Responde de forma concisa.")
-    user_p = st.text_area("User Prompt:", "Explica qué es un vector en IA.")
+    st.header("🤖 Inferencia")
+    sys = st.text_area("System Prompt:", "Eres un tutor de IA.")
+    user = st.text_area("User Prompt:", "¿Qué es el self-attention?")
     
-    c1, c2 = st.columns(2)
-    with c1:
-        temp = st.slider("Temperatura", 0.0, 1.0, 0.3) # [cite: 34]
-    with c2:
-        tp = st.slider("Top-P", 0.0, 1.0, 0.9) # [cite: 35]
+    t = st.slider("Temperatura", 0.0, 1.5, 0.7) # [cite: 34]
+    p = st.slider("Top-P", 0.0, 1.0, 0.9) # [cite: 35]
 
-    if st.button("Ejecutar Modelo"):
-        if not groq_api_key:
-            st.error("Falta API Key")
+    if st.button("Ejecutar"):
+        if not api_key:
+            st.error("No hay API Key configurada.")
+        elif not user.strip():
+            st.warning("Escribe algo en el User Prompt antes de ejecutar.")
         else:
-            client = Groq(api_key=groq_api_key)
-            start = time.time()
-            resp = client.chat.completions.create(
-                model=model_name,
-                messages=[{"role":"system","content":sys_p},{"role":"user","content":user_p}],
-                temperature=temp,
-                top_p=tp
-            )
-            total_time = time.time() - start
-            
-            # Guardamos en session_state para que el Tab 4 pueda leerlo
-            st.session_state.groq_response = {
-                "text": resp.choices[0].message.content,
-                "usage": resp.usage,
-                "time": total_time
-            }
-            st.write("### Respuesta:")
-            st.write(st.session_state.groq_response["text"])
+            try:
+                client = Groq(api_key=api_key)
+                start = time.time()
+                # Solicitud a la API [cite: 33]
+                resp = client.chat.completions.create(
+                    model="llama3-8b-8192", # Asegúrate de que este nombre sea correcto
+                    messages=[{"role":"system","content":sys},{"role":"user","content":user}],
+                    temperature=t,
+                    top_p=p
+                )
+                dur = time.time() - start
+                
+                # Guardar métricas [cite: 38]
+                st.session_state.data = {"text": resp.choices[0].message.content, "u": resp.usage, "t": dur}
+                st.write(st.session_state.data["text"])
+            except Exception as e:
+                st.error(f"Error de solicitud: {e}")
 
-# --- Módulo 4: Métricas ---
+# --- Módulo 4: Métricas de Desempeño ---
 with tab4:
-    st.header("📊 Métricas de Desempeño")
-    if st.session_state.groq_response:
-        res = st.session_state.groq_response
-        usage = res["usage"]
+    st.header("📊 Métricas")
+    if st.session_state.data:
+        d = st.session_state.data
+        u = d["u"]
         
-        m1, m2, m3 = st.columns(3)
-        # Time per Token (ms) [cite: 39]
-        tpt = (res["time"] / usage.completion_tokens) * 1000
-        m1.metric("Time per Token", f"{tpt:.2f} ms")
-        
-        # Throughput (tokens/s) [cite: 40]
-        throughput = usage.completion_tokens / res["time"]
-        m2.metric("Throughput", f"{throughput:.2f} t/s")
-        
+        c1, c2, c3 = st.columns(3)
+        # Time per Token [cite: 39]
+        c1.metric("Time per Token", f"{(d['t']/u.completion_tokens)*1000:.2f} ms")
+        # Throughput [cite: 40]
+        c2.metric("Throughput", f"{u.completion_tokens/d['t']:.2f} t/s")
         # Total Tokens [cite: 41]
-        m3.metric("Total Tokens", usage.total_tokens)
+        c3.metric("Total Tokens", u.total_tokens)
     else:
-        st.info("Primero genera una respuesta en la pestaña 'Inferencia'.")
+        st.info("Ejecuta el modelo en la pestaña 3 para ver las métricas.")
