@@ -7,130 +7,145 @@ from sklearn.decomposition import PCA
 import numpy as np
 import time
 
-# --- Configuración de la App ---
+# --- Configuration de la page ---
 st.set_page_config(page_title="Taller LLM - EAFIT", layout="wide")
 
-# Gestión de API Key (Secrets o Manual) [cite: 16]
+# Gestion de l'API Key (via Secrets Streamlit ou saisie manuelle) [cite: 16]
 if "GROQ_API_KEY" in st.secrets:
     api_key = st.secrets["GROQ_API_KEY"]
 else:
-    api_key = st.sidebar.text_input("Groq API Key:", type="password", help="Pega tu gsk_... aquí")
+    api_key = st.sidebar.text_input("Introduce tu Groq API Key:", type="password")
 
-# Estado para guardar la respuesta y métricas
+# État de la session pour conserver les données entre les onglets 
 if 'data' not in st.session_state:
     st.session_state.data = None
 
 st.title("🛠️ Desmontando los LLMs")
-st.caption("Curso: Deep Learning y Arquitecturas Transformer - EAFIT 2026-1") # [cite: 2, 4]
+st.write("Deep Learning y Arquitecturas Transformer - Prof. Jorge Ivan Padilla Buritica") [cite: 2, 3]
 st.markdown("---")
 
+# Création des onglets requis par le taller [cite: 21, 26, 33, 37]
 tab1, tab2, tab3, tab4 = st.tabs([
     "1. Tokenizador", 
-    "2. Embeddings", 
-    "3. Inferencia", 
-    "4. Métricas"
+    "2. Geometría de Embeddings", 
+    "3. Inferencia y Groq", 
+    "4. Métricas de Rendimiento"
 ])
 
-# --- Módulo 1: Tokenizador [cite: 21] ---
+# --- Módulo 1: El Laboratorio del Tokenizador ---
 with tab1:
     st.header("🧪 El Laboratorio del Tokenizador")
-    txt = st.text_area("Ingresa un texto:", "¡Hola EAFIT! La arquitectura Transformer es fascinante.")
-    if txt:
-        enc = tiktoken.get_encoding("cl100k_base")
-        ids = enc.encode(txt)
-        toks = [enc.decode([i]) for i in ids]
+    text_input = st.text_area("Ingrese texto para tokenizar:", "¡Hola EAFIT! Los Transformers son increíbles.")
+    
+    if text_input:
+        encoding = tiktoken.get_encoding("cl100k_base") [cite: 17]
+        tokens_ids = encoding.encode(text_input) [cite: 9]
+        tokens_text = [encoding.decode([tid]) for tid in tokens_ids]
         
-        # Visualización solicitada (colores alternos) [cite: 23, 24]
-        html = "".join([f'<span style="background:{("#ff4b4b" if i%2==0 else "#1f77b4")};color:white;padding:3px;margin:2px;border-radius:3px;display:inline-block;">{t}</span>' for i, t in enumerate(toks)])
-        st.markdown(html, unsafe_allow_html=True)
+        # Visualisation avec couleurs alternes [cite: 23]
+        st.subheader("Visualización de Tokens")
+        html_tokens = ""
+        for i, token in enumerate(tokens_text):
+            color = "#ff4b4b" if i % 2 == 0 else "#1f77b4"
+            html_tokens += f'<span style="background-color:{color}; color:white; padding:2px 5px; margin:2px; border-radius:3px; display:inline-block;">{token}</span>'
+        st.markdown(html_tokens, unsafe_allow_html=True)
         
-        # Métrica comparativa [cite: 25]
-        st.metric("Comparativa (Caracteres / Tokens)", f"{len(txt)} / {len(ids)}")
+        # Métriques et Mapping [cite: 24, 25]
+        col1, col2 = st.columns(2)
+        with col1:
+            st.dataframe(pd.DataFrame({"Token": tokens_text, "Token ID": tokens_ids}))
+        with col2:
+            st.metric("Número de Caracteres", len(text_input))
+            st.metric("Número de Tokens", len(tokens_ids))
 
-# --- Módulo 2: Geometría de los Embeddings [cite: 26] ---
+# --- Módulo 2: Geometría de las Palabras (Embeddings) ---
 with tab2:
     st.header("📐 Geometría de las Palabras")
-    words_input = st.text_input("Lista de palabras (separadas por coma):", "rey, hombre, mujer, reina, madrid, españa")
+    words_input = st.text_input("Lista de palabras (separadas por coma):", "rey, hombre, mujer, reina, Madrid, España")
+    
     if words_input:
         words = [w.strip() for w in words_input.split(",")]
-        # Simulación de vectores (PCA requiere al menos 2 componentes) [cite: 30]
+        
+        # Simulation d'embeddings (PCA nécessite au moins 2 dimensions) [cite: 29, 30]
         np.random.seed(42)
-        mock_vectors = np.random.randn(len(words), 50)
+        mock_embeddings = np.random.randn(len(words), 50)
         
         pca = PCA(n_components=2)
-        coords = pca.fit_transform(mock_vectors)
-        df_geo = pd.DataFrame(coords, columns=['x', 'y'])
-        df_geo['Palabra'] = words
+        components = pca.fit_transform(mock_embeddings)
         
-        # Gráfica interactiva Plotly [cite: 31]
-        fig = px.scatter(df_geo, x='x', y='y', text='Palabra', title="Plano Cartesiano de Embeddings")
+        df_pca = pd.DataFrame(components, columns=['x', 'y'])
+        df_pca['Palabra'] = words
+        
+        # Graphique interactif Plotly [cite: 31]
+        fig = px.scatter(df_pca, x='x', y='y', text='Palabra', title="Mapa de Embeddings (PCA 2D)")
         fig.update_traces(textposition='top center')
         st.plotly_chart(fig, use_container_width=True)
-        st.info("Reto: (king) - (man) + (woman) ≈ (queen)") # [cite: 32]
+        st.info("Reto: Verifique visualmente si (king) - (man) + (woman) ≈ (queen)") [cite: 32]
 
-# --- Módulo 3: Inferencia (Groq API) [cite: 33] ---
+# --- Módulo 3: Inferencia y Razonamiento ---
 with tab3:
     st.header("🤖 Inferencia y Razonamiento")
-    sys_p = st.text_area("System Prompt:", "Eres un asistente experto en IA.") # [cite: 36]
-    user_p = st.text_area("User Prompt:", "¿Qué es el mecanismo de Self-Attention?")
+    sys_prompt = st.text_area("System Prompt:", "Eres un asistente experto en IA.") [cite: 36]
+    user_prompt = st.text_area("User Prompt:", "¿Qué es el mecanismo de Self-Attention?")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        temp = st.slider("Temperatura", 0.0, 1.5, 0.7) # [cite: 34]
-    with col2:
-        tp = st.slider("Top-P", 0.0, 1.0, 0.9) # [cite: 35]
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        temp = st.slider("Temperatura", 0.0, 1.5, 0.7, help="Bajo: Determinista | Alto: Creativo") [cite: 34]
+    with col_p2:
+        top_p = st.slider("Top-P", 0.0, 1.0, 0.9) [cite: 35]
 
     if st.button("Generar Respuesta"):
         if not api_key:
-            st.error("Por favor, ingresa tu API Key en la barra lateral o en Secrets.")
+            st.error("Por favor, ingrese su API Key.")
         else:
             try:
                 client = Groq(api_key=api_key)
-                start_t = time.time()
+                start_time = time.time()
                 
-                resp = client.chat.completions.create(
-                    model="llama3-8b-8192", # [cite: 47]
+                # Utilisation du modèle llama-3.1 car le 3.0 est decommissioned
+                completion = client.chat.completions.create(
+                    model="llama-3.1-8b-instant", 
                     messages=[
-                        {"role": "system", "content": sys_p},
-                        {"role": "user", "content": user_p}
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_prompt}
                     ],
                     temperature=temp,
-                    top_p=tp
+                    top_p=top_p
                 )
+                duration = time.time() - start_time
                 
-                end_t = time.time()
-                dur = end_t - start_t
-                
-                # Guardar en sesión para el Módulo 4 
+                # Stockage des données pour le module 4 
                 st.session_state.data = {
-                    "text": resp.choices[0].message.content,
-                    "usage": resp.usage,
-                    "time": dur
+                    "response": completion.choices[0].message.content,
+                    "usage": completion.usage,
+                    "duration": duration
                 }
-                st.subheader("Respuesta del Modelo:")
-                st.write(st.session_state.data["text"])
+                st.write("### Respuesta del Modelo:")
+                st.write(st.session_state.data["response"])
                 
             except Exception as e:
-                st.error(f"Error de comunicación con Groq: {e}")
+                st.error(f"Error: {e}")
 
-# --- Módulo 4: Métricas de Desempeño [cite: 37] ---
+# --- Módulo 4: Métricas de Rendimiento ---
 with tab4:
-    st.header("📊 Métricas de Velocidad")
+    st.header("📊 Métricas de Desempeño (Groq)")
     if st.session_state.data:
-        res = st.session_state.data
-        u = res["usage"]
+        usage = st.session_state.data["usage"]
+        duration = st.session_state.data["duration"]
         
-        m1, m2, m3 = st.columns(3)
-        # Time per Token (ms) [cite: 39]
-        tpt = (res["time"] / u.completion_tokens) * 1000
-        m1.metric("Time per Token", f"{tpt:.2f} ms")
-        
-        # Throughput (tokens/s) [cite: 40]
-        throughput = u.completion_tokens / res["time"]
-        m2.metric("Throughput", f"{throughput:.2f} t/s")
-        
-        # Total Tokens (Entrada vs Salida) [cite: 41]
-        m3.metric("Total Tokens", u.total_tokens)
-        st.write(f"Tokens de entrada: **{u.prompt_tokens}** | Tokens de salida: **{u.completion_tokens}**")
+        m_col1, m_col2, m_col3 = st.columns(3)
+        with m_col1:
+            # Time per Token (ms) [cite: 39]
+            tpt = (duration / usage.completion_tokens) * 1000 if usage.completion_tokens > 0 else 0
+            st.metric("Time per Token", f"{tpt:.2f} ms")
+        with m_col2:
+            # Throughput (tokens/s) [cite: 40]
+            throughput = usage.completion_tokens / duration if duration > 0 else 0
+            st.metric("Throughput", f"{throughput:.2f} t/s")
+        with m_col3:
+            # Total Tokens [cite: 41]
+            st.metric("Total Tokens", usage.total_tokens)
+            
+        st.write(f"**Tokens Entrada:** {usage.prompt_tokens} | **Tokens Salida:** {usage.completion_tokens}")
     else:
-        st.info("Primero genera una respuesta en la pestaña de 'Inferencia'.")
+        st.info("Genere una respuesta en el Módulo 3 para ver las métricas.")
